@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🎬 Cine Matrix Films — Reserva de Asientos</title>
+
+  <!-- Bootstrap 5 CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <!-- Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
+
+  <style>
+    /* ============================================================
+       ESTILOS GENERALES
+       Paleta: fondo oscuro tipo cine, dorado como acento
+    ============================================================ */
+    :root {
+      --cine-bg: #0d0d0d;
+      --cine-card: #1a1a2e;
+      --cine-gold: #f5c518;
+      --cine-red: #e63946;
+      --cine-green: #2dc653;
+      --cine-gray: #3a3a3a;
+      --cine-text: #e8e8e8;
+    }
+
+    body {
+      background-color: var(--cine-bg);
+      color: var(--cine-text);
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── Encabezado con pantalla de cine ── */
+    .pantalla {
+      background: linear-gradient(180deg, #fff9c4 0%, #f5c518 60%, transparent 100%);
+      height: 14px;
+      border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+      width: 60%;
+      margin: 0 auto 6px;
+      box-shadow: 0 0 30px 8px rgba(245,197,24,0.35);
+      /* Animación: brillo pulsante de la pantalla */
+      animation: pulso 3s ease-in-out infinite;
+    }
+
+    @keyframes pulso {
+      0%, 100% { box-shadow: 0 0 30px 8px rgba(245,197,24,0.35); }
+      50%       { box-shadow: 0 0 55px 18px rgba(245,197,24,0.6); }
+    }
+
+    .titulo-cine {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: 3px;
+      color: var(--cine-gold);
+      text-shadow: 0 0 18px rgba(245,197,24,0.6);
+    }
+
+    /* ── Tarjeta principal ── */
+    .card-cine {
+      background: var(--cine-card);
+      border: 1px solid #2a2a4a;
+      border-radius: 16px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+    }
+
+    /* ============================================================
+       GRILLA DE ASIENTOS
+    ============================================================ */
+    .sala-grid {
+      display: grid;
+      /* 6 columnas: 1 para etiqueta de fila + 5 para asientos */
+      grid-template-columns: 32px repeat({{ columnas }}, 1fr);
+      gap: 10px;
+      justify-items: center;
+      align-items: center;
+    }
+
+    /* Etiquetas de fila y columna */
+    .etiqueta {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #888;
+      text-align: center;
+    }
+
+    /* ── Cada botón-asiento ── */
+    .asiento {
+      width: 52px;
+      height: 52px;
+      border-radius: 10px 10px 6px 6px;  /* Forma de silla */
+      border: 2px solid transparent;
+      font-size: 1.3rem;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.25s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      outline: none;
+    }
+
+    /* Estado LIBRE → verde tenue */
+    .asiento.libre {
+      background: #1e3a2f;
+      border-color: var(--cine-green);
+      color: var(--cine-green);
+    }
+
+    .asiento.libre:hover {
+      background: var(--cine-green);
+      color: #fff;
+      transform: translateY(-4px) scale(1.08);
+      box-shadow: 0 6px 20px rgba(45,198,83,0.45);
+    }
+
+    /* Estado OCUPADO → rojo */
+    .asiento.ocupado {
+      background: #3a1a1e;
+      border-color: var(--cine-red);
+      color: var(--cine-red);
+      cursor: not-allowed;
+    }
+
+    /* Animación al reservar: "bounce" del asiento */
+    @keyframes bounce-asiento {
+      0%   { transform: scale(1); }
+      30%  { transform: scale(1.25) rotate(-5deg); }
+      60%  { transform: scale(0.95) rotate(3deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+
+    .asiento.animando {
+      animation: bounce-asiento 0.45s ease;
+    }
+
+    /* ============================================================
+       LEYENDA
+    ============================================================ */
+    .leyenda-dot {
+      width: 18px; height: 18px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+
+    /* ============================================================
+       BADGE DE ESTADÍSTICAS
+    ============================================================ */
+    .stat-badge {
+      background: #111;
+      border: 1px solid #333;
+      border-radius: 10px;
+      padding: 10px 18px;
+      text-align: center;
+    }
+
+    .stat-numero {
+      font-size: 1.8rem;
+      font-weight: 800;
+    }
+
+    /* ============================================================
+       ALERTA DE MENSAJES (toast-like)
+    ============================================================ */
+    #mensaje {
+      /* Oculto por defecto; se muestra con JS */
+      transition: opacity 0.35s ease;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    /* ============================================================
+       MODAL DE CÓDIGO FUENTE
+    ============================================================ */
+    .modal-content {
+      background: #111;
+      border: 1px solid #333;
+    }
+
+    .modal-header {
+      border-bottom: 1px solid #222;
+    }
+
+    /* Bloque de código con scroll */
+    #bloque-codigo {
+      background: #0a0a0a;
+      border: 1px solid #333;
+      border-radius: 10px;
+      max-height: 65vh;
+      overflow-y: auto;
+      white-space: pre;
+      font-family: 'Courier New', monospace;
+      font-size: 0.78rem;
+      line-height: 1.6;
+      color: #cdd6f4;
+      padding: 16px;
+    }
+
+    /* Coloreado simple de palabras clave Python */
+    .kw  { color: #cba6f7; font-weight: bold; }  /* keywords */
+    .str { color: #a6e3a1; }                       /* strings  */
+    .com { color: #585b70; font-style: italic; }   /* comments */
+    .fn  { color: #89b4fa; }                        /* funciones */
+    .num { color: #fab387; }                        /* números   */
+
+    /* Botón dorado */
+    .btn-gold {
+      background: var(--cine-gold);
+      color: #000;
+      font-weight: 700;
+      border: none;
+    }
+
+    .btn-gold:hover {
+      background: #e0b000;
+      color: #000;
+      transform: translateY(-1px);
+    }
+
+    /* ── Animación de entrada de la tarjeta ── */
+    @keyframes slide-up {
+      from { opacity: 0; transform: translateY(30px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-cine { animation: slide-up 0.5s ease both; }
+  </style>
+</head>
+<body>
+
+<!-- ============================================================
+     ENCABEZADO: Pantalla de cine decorativa
+============================================================ -->
+<div class="container py-4">
+  <div class="text-center mb-4">
+    <!-- Barra que simula la pantalla del cine -->
+    <div class="pantalla"></div>
+    <p class="etiqueta mb-1" style="color:#666; font-size:0.7rem; letter-spacing:2px;">PANTALLA</p>
+    <h1 class="titulo-cine mt-3">🎬 MATRIX FILMS</h1>
+    <p class="text-secondary">Simulador de Reserva de Asientos &mdash; Sala Principal</p>
+  </div>
+
+  <div class="row g-4 justify-content-center">
+
+    <!-- ============================================================
+         COLUMNA IZQUIERDA: Grilla de asientos
+    ============================================================ -->
+    <div class="col-lg-7">
+      <div class="card-cine p-4">
+
+        <!-- Estadísticas rápidas -->
+        <div class="row g-2 mb-4" id="stats">
+          <div class="col-4">
+            <div class="stat-badge">
+              <div class="stat-numero text-warning" id="stat-total">{{ filas * columnas }}</div>
+              <small class="text-secondary">Total</small>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="stat-badge">
+              <div class="stat-numero" style="color:var(--cine-green)" id="stat-libres">
+                {{ filas * columnas }}
+              </div>
+              <small class="text-secondary">Libres</small>
+            </div>
+          </div>
+          <div class="col-4">
+            <div class="stat-badge">
+              <div class="stat-numero" style="color:var(--cine-red)" id="stat-ocupados">0</div>
+              <small class="text-secondary">Ocupados</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── GRILLA DE LA SALA ── -->
+        <div class="sala-grid" id="sala-grid">
+
+          <!-- Fila de encabezados de columnas (C1, C2 ... C5) -->
+          <div></div>  <!-- esquina vacía -->
+          {% for c in range(columnas) %}
+            <div class="etiqueta">C{{ c+1 }}</div>
+          {% endfor %}
+
+          <!-- Filas con asientos.
+               Jinja2 itera sobre la matriz 'sala' recibida desde Flask. -->
+          {% for fila in range(filas) %}
+            <!-- Etiqueta de fila (F1, F2 ...) -->
+            <div class="etiqueta">F{{ fila+1 }}</div>
+
+            {% for col in range(columnas) %}
+              <!--
+                Cada asiento es un botón con:
+                  data-fila y data-col → coordenadas usadas en JavaScript
+                  clase 'libre' u 'ocupado' → refleja el estado de la matriz
+              -->
+              <button
+                class="asiento {{ 'ocupado' if sala[fila][col] == 1 else 'libre' }}"
+                data-fila="{{ fila }}"
+                data-col="{{ col }}"
+                onclick="reservarAsiento({{ fila }}, {{ col }}, this)"
+                title="Asiento Fila {{ fila+1 }}, Col {{ col+1 }}"
+              >
+                {{ '🧑' if sala[fila][col] == 1 else '💺' }}
+              </button>
+            {% endfor %}
+          {% endfor %}
+
+        </div><!-- /sala-grid -->
+
+        <!-- Leyenda -->
+        <div class="d-flex gap-4 justify-content-center mt-4">
+          <div class="d-flex align-items-center gap-2">
+            <div class="leyenda-dot" style="background:#1e3a2f; border:2px solid var(--cine-green);"></div>
+            <small>💺 Libre</small>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <div class="leyenda-dot" style="background:#3a1a1e; border:2px solid var(--cine-red);"></div>
+            <small>🧑 Ocupado</small>
+          </div>
+        </div>
+
+      </div><!-- /card-cine -->
+    </div><!-- /col izquierda -->
+
+    <!-- ============================================================
+         COLUMNA DERECHA: Panel de control
+    ============================================================ -->
+    <div class="col-lg-4">
+      <div class="card-cine p-4 h-100">
+
+        <h5 class="text-warning mb-1"><i class="bi bi-ticket-perforated-fill"></i> Panel de Control</h5>
+        <p class="text-secondary small mb-4">Haz clic en cualquier asiento verde para reservarlo.</p>
+
+        <!-- Área de mensajes de respuesta -->
+        <div id="mensaje" class="alert d-none mb-3" role="alert"></div>
+
+        <!-- Últimas acciones -->
+        <div class="mb-4">
+          <p class="text-secondary small mb-2"><i class="bi bi-clock-history"></i> Últimas acciones:</p>
+          <ul class="list-unstyled" id="historial" style="font-size:0.82rem; color:#aaa; max-height:160px; overflow-y:auto;">
+            <li class="text-muted fst-italic">Sin acciones aún...</li>
+          </ul>
+        </div>
+
+        <!-- Botones de acción -->
+        <div class="d-grid gap-2">
+          <!-- Reiniciar sala: llama a /reiniciar en Flask -->
+          <button class="btn btn-outline-danger" onclick="reiniciarSala()">
+            <i class="bi bi-arrow-counterclockwise"></i> Reiniciar Sala
+          </button>
+
+          <!--
+            BOTÓN "VER CÓDIGO": abre el modal que muestra
+            el código fuente de app.py con sintaxis coloreada
+          -->
+          <button class="btn btn-gold" data-bs-toggle="modal" data-bs-target="#modalCodigo">
+            <i class="bi bi-code-slash"></i> Ver Código Fuente
+          </button>
+        </div>
+
+        <!-- Nota educativa -->
+        <div class="mt-4 p-3" style="background:#111; border-radius:10px; border-left:3px solid var(--cine-gold);">
+          <p class="small text-warning mb-1"><strong>📐 Concepto: Matrices</strong></p>
+          <p class="small text-secondary mb-0">
+            La sala es una <strong>matriz 5×5</strong>. Cada celda
+            <code style="color:var(--cine-green)">sala[fila][col]</code>
+            almacena <code>0</code> (libre) o <code>1</code> (ocupado).
+          </p>
+        </div>
+
+      </div>
+    </div><!-- /col derecha -->
+
+  </div><!-- /row -->
+</div><!-- /container -->
+
+
+<!-- ============================================================
+     MODAL: Código Fuente de app.py
+============================================================ -->
+<div class="modal fade" id="modalCodigo" tabindex="-1" aria-labelledby="modalCodigoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title text-warning" id="modalCodigoLabel">
+          <i class="bi bi-filetype-py"></i> Código Fuente — <span class="text-secondary">app.py</span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- El código se inyecta aquí por JavaScript con coloreado -->
+        <pre id="bloque-codigo"></pre>
+      </div>
+
+      <div class="modal-footer" style="border-top:1px solid #222;">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+        <button class="btn btn-gold btn-sm" onclick="copiarCodigo()">
+          <i class="bi bi-clipboard"></i> Copiar Código
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- ============================================================
+     BOOTSTRAP 5 JS
+============================================================ -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+/* ============================================================
+   JAVASCRIPT DEL SIMULADOR
+
+   Responsabilidades:
+     1. Comunicarse con Flask via fetch() (AJAX/JSON)
+     2. Actualizar la grilla de asientos en el DOM
+     3. Mostrar mensajes de éxito/error
+     4. Renderizar y colorear el código fuente en el modal
+============================================================ */
+
+// ── Función principal: reservar asiento ──────────────────────
+async function reservarAsiento(fila, col, boton) {
+  // Si el asiento ya está ocupado, no hacemos nada
+  if (boton.classList.contains('ocupado')) {
+    mostrarMensaje(`❌ El asiento [${fila+1},${col+1}] ya está reservado.`, 'danger');
+    return;
+  }
+
+  try {
+    // Enviamos la solicitud POST a Flask con las coordenadas en JSON
+    const respuesta = await fetch('/reservar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fila: fila, columna: col })
+    });
+
+    const datos = await respuesta.json();  // Parseamos la respuesta JSON
+
+    if (datos.success) {
+      // ── Actualizar visualmente el asiento ──
+      boton.classList.remove('libre');
+      boton.classList.add('ocupado');
+      boton.textContent = '🧑';
+
+      // Animación de "bounce" al reservar
+      boton.classList.add('animando');
+      setTimeout(() => boton.classList.remove('animando'), 500);
+
+      // Actualizar estadísticas y mostrar mensaje
+      actualizarStats(datos.sala);
+      mostrarMensaje(datos.mensaje, 'success');
+      agregarHistorial(datos.mensaje);
+
+    } else {
+      // Asiento ya ocupado: mostrar error
+      mostrarMensaje(datos.mensaje, 'danger');
+      agregarHistorial(datos.mensaje);
+    }
+
+  } catch (error) {
+    mostrarMensaje('Error de conexión con el servidor.', 'danger');
+  }
+}
+
+
+// ── Reiniciar toda la sala ────────────────────────────────────
+async function reiniciarSala() {
+  // Confirmación antes de borrar todo
+  if (!confirm('¿Reiniciar la sala? Se liberarán todos los asientos.')) return;
+
+  const respuesta = await fetch('/reiniciar', { method: 'POST' });
+  const datos = await respuesta.json();
+
+  if (datos.success) {
+    // Actualizar TODOS los botones de asiento en el DOM
+    document.querySelectorAll('.asiento').forEach(btn => {
+      btn.classList.remove('ocupado');
+      btn.classList.add('libre');
+      btn.textContent = '💺';
+    });
+
+    actualizarStats(datos.sala);
+    mostrarMensaje(datos.mensaje, 'info');
+    agregarHistorial('🔄 Sala reiniciada.');
+  }
+}
+
+
+// ── Recalcular y mostrar estadísticas ────────────────────────
+function actualizarStats(sala) {
+  // Contamos cuántos 1s (ocupados) hay en la matriz
+  let ocupados = sala.flat().filter(v => v === 1).length;
+  let total = sala.flat().length;
+  let libres = total - ocupados;
+
+  document.getElementById('stat-ocupados').textContent = ocupados;
+  document.getElementById('stat-libres').textContent   = libres;
+  document.getElementById('stat-total').textContent    = total;
+}
+
+
+// ── Mostrar mensaje de alerta con fade automático ────────────
+function mostrarMensaje(texto, tipo) {
+  const el = document.getElementById('mensaje');
+  // Quitar clases anteriores y poner la nueva
+  el.className = `alert alert-${tipo}`;
+  el.textContent = texto;
+
+  // Desaparecer después de 3 segundos
+  setTimeout(() => { el.className = 'alert d-none'; }, 3500);
+}
+
+
+// ── Agregar acción al historial ───────────────────────────────
+function agregarHistorial(texto) {
+  const lista = document.getElementById('historial');
+  // Limpiar el placeholder inicial
+  if (lista.querySelector('.fst-italic')) lista.innerHTML = '';
+
+  const item = document.createElement('li');
+  item.textContent = texto;
+  // Insertar al inicio para ver las más recientes primero
+  lista.insertBefore(item, lista.firstChild);
+}
+
+
+/* ============================================================
+   CÓDIGO FUENTE — Coloreo sintáctico simple
+   Se carga cuando se abre el modal por primera vez.
+============================================================ */
+const codigoFuente = `"""
+=============================================================
+  SIMULADOR DE RESERVA DE ASIENTOS - CINE "MATRIX FILMS"
+  Materia: Programación / Estructuras de Datos
+  Tema: Matrices (Arreglos Bidimensionales)
+=============================================================
+"""
+
+from flask import Flask, render_template, jsonify, request, session
+
+# --- Inicialización de la aplicación Flask ---
+app = Flask(__name__)
+app.secret_key = "cine_matrix_secret_2024"
+
+# -------------------------------------------------------
+# CONSTANTE: Tamaño de la sala (5 filas x 5 columnas)
+# -------------------------------------------------------
+FILAS = 5
+COLUMNAS = 5
+
+
+def crear_sala():
+    """
+    Crea y retorna una MATRIZ 5x5 llena de ceros.
+    Cada 0 representa un asiento LIBRE.
+        sala[fila][columna] = 0  → Libre
+        sala[fila][columna] = 1  → Ocupado
+    """
+    return [[0 for _ in range(COLUMNAS)] for _ in range(FILAS)]
+
+
+def obtener_sala():
+    """
+    Obtiene la sala desde la sesión del usuario.
+    Si no existe aún, crea una sala vacía y la guarda.
+    """
+    if "sala" not in session:
+        session["sala"] = crear_sala()
+    return session["sala"]
+
+
+@app.route("/")
+def index():
+    """Renderiza el template principal."""
+    sala = obtener_sala()
+    return render_template("index.html", sala=sala, filas=FILAS, columnas=COLUMNAS)
+
+
+@app.route("/reservar", methods=["POST"])
+def reservar():
+    """
+    Recibe fila y columna en JSON, verifica si el asiento
+    está libre y lo reserva cambiando 0 → 1.
+    """
+    datos = request.get_json()
+    fila    = datos.get("fila")
+    columna = datos.get("columna")
+    sala    = obtener_sala()
+
+    # Validar rango
+    if not (0 <= fila < FILAS and 0 <= columna < COLUMNAS):
+        return jsonify({"success": False, "mensaje": "Coordenadas inválidas."})
+
+    # Verificar si el asiento ya está ocupado (valor == 1)
+    if sala[fila][columna] == 1:
+        return jsonify({
+            "success": False,
+            "mensaje": f"❌ Asiento [{fila+1},{columna+1}] ya está RESERVADO."
+        })
+
+    # Reservar: cambiar 0 → 1
+    sala[fila][columna] = 1
+    session["sala"] = sala
+    session.modified = True
+
+    return jsonify({
+        "success": True,
+        "mensaje": f"✅ Asiento [{fila+1},{columna+1}] reservado exitosamente.",
+        "sala": sala
+    })
+
+
+@app.route("/reiniciar", methods=["POST"])
+def reiniciar():
+    """Restaura todos los asientos a 0 (libres)."""
+    session["sala"] = crear_sala()
+    session.modified = True
+    return jsonify({
+        "success": True,
+        "mensaje": "🔄 Sala reiniciada.",
+        "sala": session["sala"]
+    })
+
+
+@app.route("/estado")
+def estado():
+    """Retorna el estado actual de la sala en JSON."""
+    sala = obtener_sala()
+    ocupados = sum(sala[f][c] for f in range(FILAS) for c in range(COLUMNAS))
+    libres   = FILAS * COLUMNAS - ocupados
+    return jsonify({"sala": sala, "ocupados": ocupados, "libres": libres})
+
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)
+`;
+
+// Coloreo básico con expresiones regulares
+function colorearPython(codigo) {
+  const keywords = /\b(def|return|if|else|elif|for|in|not|and|or|import|from|class|True|False|None|with|as|try|except|pass|raise|while|break|continue)\b/g;
+  const strings  = /("""[\s\S]*?"""|'''[\s\S]*?'''|"[^"]*"|'[^']*')/g;
+  const comments = /(#.*)/g;
+  const funcs    = /\b(Flask|render_template|jsonify|request|session|app|route|run|get_json|get)\b/g;
+  const numbers  = /\b(\d+)\b/g;
+
+  // Escapar HTML primero para evitar inyección
+  let safe = codigo.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  // Aplicar colores (orden importa: strings y comentarios primero)
+  safe = safe.replace(strings,  m => `<span class="str">${m}</span>`);
+  safe = safe.replace(comments, m => `<span class="com">${m}</span>`);
+  safe = safe.replace(keywords, m => `<span class="kw">${m}</span>`);
+  safe = safe.replace(funcs,    m => `<span class="fn">${m}</span>`);
+  safe = safe.replace(numbers,  m => `<span class="num">${m}</span>`);
+
+  return safe;
+}
+
+// Cargar el código coloreado cuando se abre el modal
+document.getElementById('modalCodigo').addEventListener('show.bs.modal', function() {
+  const bloque = document.getElementById('bloque-codigo');
+  if (!bloque.innerHTML) {
+    bloque.innerHTML = colorearPython(codigoFuente);
+  }
+});
+
+// ── Copiar el código al portapapeles ─────────────────────────
+function copiarCodigo() {
+  navigator.clipboard.writeText(codigoFuente).then(() => {
+    mostrarMensaje('📋 Código copiado al portapapeles.', 'info');
+  });
+}
+
+// Cargar estadísticas iniciales al abrir la página
+window.addEventListener('DOMContentLoaded', async () => {
+  const r = await fetch('/estado');
+  const d = await r.json();
+  actualizarStats(d.sala);
+});
+</script>
+
+</body>
+</html>
